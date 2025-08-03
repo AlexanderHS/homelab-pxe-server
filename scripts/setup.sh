@@ -199,8 +199,18 @@ validate_env() {
 generate_configs() {
     log_info "Generating configuration files..."
     
-    # Generate dnsmasq.conf
-    envsubst < config/dnsmasq.conf.template > config/dnsmasq.conf
+    # Generate dnsmasq.conf with proper DNS server formatting
+    envsubst < config/dnsmasq.conf.template > config/dnsmasq.conf.tmp
+    
+    # Fix DNS servers - convert comma-separated to separate server= lines
+    sed -i "s/server=\([^,]*\),\([^,]*\)/server=\1\nserver=\2/" config/dnsmasq.conf.tmp
+    
+    # Handle additional DNS servers if more than 2
+    while grep -q "server=.*,.*" config/dnsmasq.conf.tmp; do
+        sed -i "s/server=\([^,]*\),\(.*\)/server=\1\nserver=\2/" config/dnsmasq.conf.tmp
+    done
+    
+    mv config/dnsmasq.conf.tmp config/dnsmasq.conf
     log_success "Generated config/dnsmasq.conf"
     
     # Generate iPXE menu
