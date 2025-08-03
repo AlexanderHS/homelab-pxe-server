@@ -1,0 +1,66 @@
+#!/bin/bash
+# Debian post-installation script
+# This file is a template and should be processed by envsubst
+
+set -e
+
+# Add user to sudo group
+usermod -aG sudo ${DEBIAN_USERNAME}
+
+# Configure SSH
+sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' /etc/ssh/sshd_config
+sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
+systemctl enable ssh
+systemctl start ssh
+
+# Update package lists
+apt-get update
+
+# Install additional packages
+apt-get install -y \
+    realmd \
+    sssd \
+    sssd-tools \
+    libnss-sss \
+    libpam-sss \
+    adcli \
+    samba-common-bin \
+    oddjob \
+    oddjob-mkhomedir \
+    packagekit \
+    chrony
+
+# Configure time synchronization
+systemctl enable chrony
+systemctl start chrony
+
+# Join domain if configured
+if [ -n "${DOMAIN_NAME}" ] && [ -n "${DOMAIN_JOIN_USER}" ] && [ -n "${DOMAIN_JOIN_PASS}" ]; then
+    echo "Joining domain ${DOMAIN_NAME}..."
+    
+    # Configure realm
+    realm discover ${DOMAIN_NAME}
+    
+    # Join domain
+    echo "${DOMAIN_JOIN_PASS}" | realm join --user=${DOMAIN_JOIN_USER} ${DOMAIN_NAME}
+    
+    # Configure SSSD for home directory creation
+    realm permit --all
+    
+    # Enable automatic home directory creation
+    pam-auth-update --enable mkhomedir
+    
+    echo "Domain join completed successfully"
+else
+    echo "Skipping domain join - credentials not provided"
+fi
+
+# Set up automatic updates
+apt-get install -y unattended-upgrades
+echo 'Unattended-Upgrade::Automatic-Reboot "false";' >> /etc/apt/apt.conf.d/50unattended-upgrades
+
+# Clean up
+apt-get autoremove -y
+apt-get autoclean
+
+echo "Post-installation script completed successfully"

@@ -1,0 +1,97 @@
+#!ipxe
+
+# iPXE Boot Menu for Homelab PXE Server
+# This file is a template and should be processed by envsubst
+
+set timeout ${IPXE_TIMEOUT}
+set default ${IPXE_DEFAULT_BOOT}
+
+:start
+echo
+echo ========================================
+echo    Homelab PXE Boot Menu (${DOMAIN_NAME})
+echo ========================================
+echo
+echo Available options:
+echo
+echo 1. Windows 11 Unattended Install
+echo 2. Debian 12 Unattended Install
+echo 3. Boot from local disk
+echo 4. Network diagnostics
+echo 5. Memory test (memtest86+)
+echo 6. Reboot
+echo
+echo Auto-boot timeout: ${timeout} seconds
+echo
+
+:menu
+menu
+item --gap --                  ========================================
+item --gap --                     Homelab PXE Boot Menu
+item --gap --                  ========================================
+item --gap --
+item win11                      Windows 11 Unattended Install
+item debian12                   Debian 12 Unattended Install
+item --gap --
+item localboot                  Boot from local disk
+item netdiag                    Network diagnostics
+item memtest                    Memory test (memtest86+)
+item --gap --
+item reboot                     Reboot
+item --gap --
+choose --timeout ${timeout} --default ${default} selected || goto cancel
+goto \${selected}
+
+:win11
+echo Starting Windows 11 unattended installation...
+kernel http://${PXE_SERVER_IP}/tftpboot/wimboot
+initrd http://${PXE_SERVER_IP}/isos/windows11/bootmgr         bootmgr
+initrd http://${PXE_SERVER_IP}/isos/windows11/Boot/BCD       BCD
+initrd http://${PXE_SERVER_IP}/isos/windows11/Boot/boot.sdi  boot.sdi
+initrd http://${PXE_SERVER_IP}/isos/windows11/sources/boot.wim boot.wim
+boot || goto failed
+
+:debian12
+echo Starting Debian 12 unattended installation...
+kernel http://${PXE_SERVER_IP}/isos/debian12/linux
+initrd http://${PXE_SERVER_IP}/isos/debian12/initrd.gz
+imgargs linux auto=true priority=critical preseed/url=http://${PXE_SERVER_IP}/templates/debian-preseed.cfg netcfg/get_hostname=${DEBIAN_HOSTNAME} netcfg/get_domain=${DOMAIN_NAME}
+boot || goto failed
+
+:localboot
+echo Booting from local disk...
+sanboot --no-describe --drive 0x80
+goto failed
+
+:netdiag
+echo Running network diagnostics...
+echo IP Configuration:
+dhcp
+show ip
+echo
+echo Gateway: ${GATEWAY_IP}
+echo DNS: ${DNS_SERVERS}
+echo PXE Server: ${PXE_SERVER_IP}
+echo
+echo Press any key to return to menu...
+prompt
+goto menu
+
+:memtest
+echo Loading memtest86+...
+kernel http://${PXE_SERVER_IP}/tftpboot/memtest86+
+boot || goto failed
+
+:reboot
+echo Rebooting system...
+reboot
+
+:cancel
+echo Boot cancelled by user
+goto menu
+
+:failed
+echo
+echo Boot failed. Press any key to return to menu...
+prompt
+goto menu

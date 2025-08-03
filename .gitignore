@@ -1,0 +1,52 @@
+# Environment files
+.env
+*.env.local
+
+# Generated configuration files
+config/dnsmasq.conf
+config/templates/*.xml
+config/templates/*.cfg
+config/templates/*.sh
+config/templates/*.ps1
+
+# Generated iPXE menu
+tftpboot/menu.ipxe
+
+# ISO files and extracted content
+isos/*
+!isos/*/README.txt
+
+# Boot files (downloaded)
+tftpboot/ipxe.efi
+tftpboot/undionly.kpxe
+tftpboot/wimboot
+tftpboot/memtest86+
+
+# Docker volumes
+volumes/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Backup files
+*.backup
+*.bak
+*.tar.gz
+
+# Runtime files
+*.pid
+*.sock

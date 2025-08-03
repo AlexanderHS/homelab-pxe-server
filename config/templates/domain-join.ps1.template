@@ -1,0 +1,123 @@
+# PowerShell Domain Join Script for Windows 11
+# This file is a template and should be processed by envsubst
+
+param(
+    [string]$LogPath = "C:\temp\domain-join.log"
+)
+
+# Create log directory if it doesn't exist
+$LogDir = Split-Path $LogPath -Parent
+if (!(Test-Path $LogDir)) {
+    New-Item -ItemType Directory -Path $LogDir -Force
+}
+
+# Logging function
+function Write-Log {
+    param([string]$Message)
+    $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $LogMessage = "[$Timestamp] $Message"
+    Write-Host $LogMessage
+    Add-Content -Path $LogPath -Value $LogMessage
+}
+
+try {
+    Write-Log "Starting domain join process..."
+    
+    # Domain join parameters
+    $Domain = "${DOMAIN_NAME}"
+    $Username = "${DOMAIN_JOIN_USER}"
+    $Password = "${DOMAIN_JOIN_PASS}"
+    $ComputerName = $env:COMPUTERNAME
+    
+    Write-Log "Domain: $Domain"
+    Write-Log "Username: $Username"
+    Write-Log "Computer: $ComputerName"
+    
+    # Create credential object
+    $SecurePassword = ConvertTo-SecureString $Password -AsPlainText -Force
+    $Credential = New-Object System.Management.Automation.PSCredential($Username, $SecurePassword)
+    
+    # Wait for network connectivity
+    Write-Log "Waiting for network connectivity..."
+    $MaxWait = 300  # 5 minutes
+    $WaitTime = 0
+    while ($WaitTime -lt $MaxWait) {
+        try {
+            $DnsTest = Resolve-DnsName -Name $Domain -ErrorAction Stop
+            Write-Log "DNS resolution successful for $Domain"
+            break
+        }
+        catch {
+            Write-Log "DNS resolution failed, waiting 10 seconds..."
+            Start-Sleep -Seconds 10
+            $WaitTime += 10
+        }
+    }
+    
+    if ($WaitTime -ge $MaxWait) {
+        throw "Network connectivity timeout - unable to resolve domain $Domain"
+    }
+    
+    # Test domain connectivity
+    Write-Log "Testing domain connectivity..."
+    try {
+        $DomainController = Get-ADDomainController -Domain $Domain -Discover -ErrorAction Stop
+        Write-Log "Found domain controller: $($DomainController.HostName)"
+    }
+    catch {
+        Write-Log "Warning: Could not discover domain controller, proceeding anyway..."
+    }
+    
+    # Join the domain
+    Write-Log "Attempting to join domain $Domain..."
+    try {
+        Add-Computer -DomainName $Domain -Credential $Credential -Force -ErrorAction Stop
+        Write-Log "Successfully joined domain $Domain"
+        
+        # Set automatic logon for domain user (optional)
+        # Uncomment if you want automatic domain user logon
+        # $DomainUser = "$Domain\$Username"
+        # Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name "AutoAdminLogon" -Value "1"
+        # Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name "DefaultUserName" -Value $DomainUser
+        # Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name "DefaultPassword" -Value $Password
+        # Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name "DefaultDomainName" -Value $Domain
+        
+        # Configure Windows Updates
+        Write-Log "Configuring Windows Updates..."
+        Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update" -Name "AUOptions" -Value 4
+        
+        # Enable Remote Desktop
+        Write-Log "Enabling Remote Desktop..."
+        Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server" -Name "fDenyTSConnections" -Value 0
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        
+        # Install Windows features if needed
+        Write-Log "Installing Windows features..."
+        Enable-WindowsOptionalFeature -Online -FeatureName "Microsoft-Windows-Subsystem-Linux" -NoRestart
+        
+        # Set power settings
+        Write-Log "Configuring power settings..."
+        powercfg /change standby-timeout-ac 0
+        powercfg /change standby-timeout-dc 0
+        powercfg /change hibernate-timeout-ac 0
+        powercfg /change hibernate-timeout-dc 0
+        
+        Write-Log "Domain join completed successfully. Computer will restart in 60 seconds."
+        
+        # Schedule restart
+        shutdown /r /t 60 /c "Restarting to complete domain join"
+        
+    }
+    catch {
+        Write-Log "ERROR: Failed to join domain - $($_.Exception.Message)"
+        throw
+    }
+}
+catch {
+    Write-Log "FATAL ERROR: $($_.Exception.Message)"
+    Write-Log "Stack trace: $($_.ScriptStackTrace)"
+    exit 1
+}
+finally {
+    Write-Log "Domain join script completed."
+}

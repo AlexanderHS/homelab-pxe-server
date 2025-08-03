@@ -1,0 +1,57 @@
+# dnsmasq configuration for PXE proxy DHCP
+# This file is a template and should be processed by envsubst
+
+# Interface to listen on (all interfaces in host mode)
+interface=*
+
+# Enable DHCP proxy mode - responds to PXE requests but doesn't assign IPs
+dhcp-proxy
+
+# DHCP range for proxy mode (no actual IP assignment)
+dhcp-range=${DHCP_PROXY_RANGE_START},proxy
+
+# Enable TFTP server
+enable-tftp
+tftp-root=${TFTP_ROOT}
+
+# Set the boot filename for UEFI PXE clients
+dhcp-match=set:efi-x86_64,option:client-arch,7
+dhcp-match=set:efi-x86_64,option:client-arch,9
+dhcp-boot=tag:efi-x86_64,ipxe.efi
+
+# iPXE boot script for clients that already have iPXE loaded
+dhcp-match=set:ipxe,175
+dhcp-boot=tag:ipxe,http://${PXE_SERVER_IP}/menu.ipxe
+
+# Set next-server (TFTP server) to this machine
+dhcp-option=option:tftp-server,${PXE_SERVER_IP}
+
+# DNS settings (forward to existing DNS servers)
+no-resolv
+server=${DNS_SERVERS}
+
+# Logging
+log-queries
+log-dhcp
+
+# Cache settings
+cache-size=1000
+
+# Listen on all addresses
+listen-address=0.0.0.0
+
+# Don't read /etc/hosts
+no-hosts
+
+# Don't read /etc/resolv.conf
+no-resolv
+
+# Enable PXE service
+pxe-service=x86PC,"Network Boot from Intel",pxelinux
+pxe-service=X86-64_EFI,"Network Boot UEFI",ipxe.efi
+
+# DHCP options for PXE
+dhcp-option=vendor:PXEClient,6,2b
+dhcp-option=vendor:PXEClient,8,1,4,0,0
+dhcp-option=vendor:PXEClient,9,5,2,8,0,0
+dhcp-option=vendor:PXEClient,10,3,3,8,0,0

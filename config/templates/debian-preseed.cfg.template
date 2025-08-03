@@ -1,0 +1,69 @@
+# Debian 12 (Bookworm) Preseed Configuration
+# This file is a template and should be processed by envsubst
+
+# Localization
+d-i debian-installer/locale string en_US.UTF-8
+d-i keyboard-configuration/xkb-keymap select us
+
+# Network configuration
+d-i netcfg/choose_interface select auto
+d-i netcfg/get_hostname string ${DEBIAN_HOSTNAME}
+d-i netcfg/get_domain string ${DOMAIN_NAME}
+d-i netcfg/wireless_wep string
+
+# Mirror settings
+d-i mirror/country string manual
+d-i mirror/http/hostname string deb.debian.org
+d-i mirror/http/directory string /debian
+d-i mirror/http/proxy string
+
+# Account setup
+d-i passwd/root-login boolean false
+d-i passwd/user-fullname string ${DEBIAN_USERNAME}
+d-i passwd/username string ${DEBIAN_USERNAME}
+d-i passwd/user-password password ${DEBIAN_PASSWORD}
+d-i passwd/user-password-again password ${DEBIAN_PASSWORD}
+d-i user-setup/allow-password-weak boolean true
+d-i user-setup/encrypt-home boolean false
+
+# Clock and time zone setup
+d-i clock-setup/utc boolean true
+d-i time/zone string US/Pacific
+d-i clock-setup/ntp boolean true
+
+# Partitioning
+d-i partman-auto/method string regular
+d-i partman-auto/disk string /dev/sda
+d-i partman-auto/choose_recipe select atomic
+d-i partman-partitioning/confirm_write_new_label boolean true
+d-i partman/choose_partition select finish
+d-i partman/confirm boolean true
+d-i partman/confirm_nooverwrite boolean true
+
+# Base system installation
+d-i base-installer/install-recommends boolean false
+d-i base-installer/kernel/image string linux-image-amd64
+
+# Package selection
+tasksel tasksel/first multiselect standard, ssh-server
+d-i pkgsel/include string openssh-server sudo curl wget gnupg2 software-properties-common apt-transport-https ca-certificates
+d-i pkgsel/upgrade select full-upgrade
+popularity-contest popularity-contest/participate boolean false
+
+# Boot loader installation
+d-i grub-installer/only_debian boolean true
+d-i grub-installer/with_other_os boolean true
+d-i grub-installer/bootdev string /dev/sda
+
+# Finishing up the installation
+d-i finish-install/reboot_in_progress note
+
+# Advanced options
+d-i preseed/late_command string \
+    in-target wget -O /tmp/post-install.sh http://${PXE_SERVER_IP}/templates/debian-post-install.sh; \
+    in-target chmod +x /tmp/post-install.sh; \
+    in-target /tmp/post-install.sh; \
+    in-target rm /tmp/post-install.sh
+
+# Avoid that last message about the install being complete
+d-i finish-install/reboot_in_progress note
