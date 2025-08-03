@@ -1,6 +1,6 @@
 services:
   dnsmasq:
-    image: quay.io/dnsmasq/dnsmasq:latest
+    image: 4km3/dnsmasq:latest
     container_name: pxe-dnsmasq
     network_mode: host
     privileged: true
