@@ -38,7 +38,7 @@ services:
       start_period: 10s
 
   netbootxyz:
-    image: lscr.io/linuxserver/netbootxyz:latest
+    image: ghcr.io/netbootxyz/netbootxyz:latest
     container_name: pxe-netbootxyz
     restart: unless-stopped
     ports:
@@ -47,7 +47,8 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=Australia/Melbourne
-      - MENU_VERSION=2.0.59
+      - MENU_VERSION=2.0.84
+      - WEB_APP_PORT=3000
     volumes:
       - netbootxyz-config:/config
       - /etc/localtime:/etc/localtime:ro
