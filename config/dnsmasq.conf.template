@@ -28,7 +28,7 @@ dhcp-option=option:tftp-server,${PXE_SERVER_IP}
 
 # DNS settings (forward to existing DNS servers)
 no-resolv
-server=${DNS_SERVERS}
+__DNS_SERVERS_PLACEHOLDER__
 
 # Logging
 log-queries
@@ -42,9 +42,6 @@ listen-address=0.0.0.0
 
 # Don't read /etc/hosts
 no-hosts
-
-# Don't read /etc/resolv.conf
-no-resolv
 
 # Enable PXE service
 pxe-service=x86PC,"Network Boot from Intel",pxelinux

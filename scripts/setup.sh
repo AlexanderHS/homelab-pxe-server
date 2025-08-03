@@ -200,15 +200,23 @@ generate_configs() {
     log_info "Generating configuration files..."
     
     # Generate dnsmasq.conf with proper DNS server formatting
+    log_info "Processing DNS servers: $DNS_SERVERS"
+    
+    # Create DNS server lines
+    dns_server_lines=""
+    IFS=',' read -ra DNS_ARRAY <<< "$DNS_SERVERS"
+    for dns in "${DNS_ARRAY[@]}"; do
+        dns_server_lines="${dns_server_lines}server=${dns}\\n"
+    done
+    
+    # Generate config with environment substitution
     envsubst < config/dnsmasq.conf.template > config/dnsmasq.conf.tmp
     
-    # Fix DNS servers - convert comma-separated to separate server= lines
-    sed -i "s/server=\([^,]*\),\([^,]*\)/server=\1\nserver=\2/" config/dnsmasq.conf.tmp
+    # Replace DNS servers placeholder with proper server lines
+    sed -i "s/__DNS_SERVERS_PLACEHOLDER__/${dns_server_lines}/" config/dnsmasq.conf.tmp
     
-    # Handle additional DNS servers if more than 2
-    while grep -q "server=.*,.*" config/dnsmasq.conf.tmp; do
-        sed -i "s/server=\([^,]*\),\(.*\)/server=\1\nserver=\2/" config/dnsmasq.conf.tmp
-    done
+    # Ensure file ends with newline
+    echo "" >> config/dnsmasq.conf.tmp
     
     mv config/dnsmasq.conf.tmp config/dnsmasq.conf
     log_success "Generated config/dnsmasq.conf"
